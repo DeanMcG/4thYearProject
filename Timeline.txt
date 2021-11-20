@@ -1,0 +1,13 @@
+Week 15th - 21st Nov:
+-implement all features visually
+-no functionality yet
+-test with different layouts using Streamlit
+
+Week 22nd - 28th Nov:
+-stock data being read in from database
+-add functionality to all visual features implemented previously
+-start on building machine learning model
+
+Week 29th Nov - 6th Dec:
+-finish machine learning model
+-begin log in and authentication implementation

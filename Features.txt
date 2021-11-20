@@ -1,0 +1,23 @@
+Features App Will Have:
+- select a stock to forecast from a group of stocks.
+  these stocks will have their data(.csv) stored in a MongoDB database.
+ 
+- use a slider bar to dictate how many years in advance you would like the stock forecasted.
+  the user will select between 1 and 5 years.
+  
+- small table of a couple rows that displays the stocks current data(date, open, high, low, close .etc) 
+
+- graph that displays the past year of the given stock
+
+- small table that displays the data at the end of the selected amount of years from the slider bar.
+
+- graph that displays the prediction of the stock within the amount of years selected on the slider bar.
+
+- web app will read all stock data from a Mongo database
+
+- web app will use machine learning to predict the future price of the stock. 
+  Methods like RNN or Reinforcement Learning
+  
+- log in and authentication aspect, with user data stored in a database
+
+- tailor the starting page to the specific user logging in  
