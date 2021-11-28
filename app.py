@@ -44,7 +44,7 @@ def plot_current():
 plot_current()
 
 #Forecast Data Table - currently same as current table
-st.header("Current Data")
+st.header("Forecast Data")
 st.table(data = forecast_df.tail())
 
 #Forecast Graph - currently same as current graph
