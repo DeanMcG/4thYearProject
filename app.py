@@ -27,14 +27,17 @@ myclient = pymongo.MongoClient("mongodb+srv://admin:Password@stockcluster.cuzo7.
 mydb = myclient["Stocks"]
 mycol = mydb["GOOG"]
 
-df=pd.DataFrame(list(mycol.find()))
-df = df.drop('_id', axis = 1)
+df=pd.read_csv("GOOG5.csv")
+#df=pd.DataFrame(list(mycol.find()))
+#df = df.drop('_id', axis = 1)
 
-current_df=pd.DataFrame(list(mycol.find()))
-current_df = current_df.drop('_id', axis = 1)
+current_df =pd.read_csv("GOOG5.csv")
+#current_df=pd.DataFrame(list(mycol.find()))
+#current_df = current_df.drop('_id', axis = 1)
 
-forecast_df=pd.DataFrame(list(mycol.find()))
-forecast_df = forecast_df.drop(['_id'], axis = 1)
+forecast_df=pd.read_csv("GOOG5.csv")
+#forecast_df=pd.DataFrame(list(mycol.find()))
+#forecast_df = forecast_df.drop(['_id'], axis = 1)
 
 
 
@@ -148,7 +151,7 @@ def plot_forecast():
 
     forecast_df['Close'] = forecast_df['Close'].astype(float)
 
-    fig = plt.figure(figsize=(12,8))
+    fig1 = plt.figure(figsize=(12,8))
 
     plt.plot(
         forecast_df["Date"],
@@ -158,5 +161,5 @@ def plot_forecast():
     plt.xlabel('Date')
     plt.ylabel('Close')
 
-    st.write(fig)
+    st.write(fig1)
 plot_forecast()
