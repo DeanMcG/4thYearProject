@@ -35,7 +35,7 @@ current_df =pd.read_csv("GOOG5.csv")
 #current_df=pd.DataFrame(list(mycol.find()))
 #current_df = current_df.drop('_id', axis = 1)
 
-forecast_df=pd.read_csv("GOOG5.csv")
+#forecast_df=pd.read_csv("GOOG5.csv")
 #forecast_df=pd.DataFrame(list(mycol.find()))
 #forecast_df = forecast_df.drop(['_id'], axis = 1)
 
@@ -133,30 +133,29 @@ fig = plt.figure(figsize=(12,8))
 train_data=new_dataset[:935]
 valid_data=new_dataset[935:]
 valid_data['Predictions']=predicted_closing_price
-# plt.plot(train_data["Close"])
-# #plt.plot(valid_data[['Close',"Predictions"]])
-# plt.plot(valid_data['Close'], valid_data['Predictions'])
-# st.write(fig)
 
 
+forecast_df = valid_data
 
-#Forecast Data Table - currently same as current table
+#Forecast Data Table
 st.header("Forecast Data")
 st.table(data = forecast_df.tail())
 
-#Forecast Graph - currently same as current graph
+#Forecast Graph
 def plot_forecast():
     st.header("Forecast Graph")
-    forecast_df["Date"]=pd.to_datetime(forecast_df.Date,format="%Y-%m-%d")
+    
+
 
     forecast_df['Close'] = forecast_df['Close'].astype(float)
 
     fig1 = plt.figure(figsize=(12,8))
 
-    plt.plot(
-        forecast_df["Date"],
-        forecast_df["Close"],
-    )
+    
+    plt.plot(train_data["Close"], label="Train Data")
+    plt.plot(forecast_df['Close'], label="Actual Closing Price")
+    plt.plot(forecast_df['Predictions'], label="Predicted Closing Price")                    
+    plt.legend(loc="upper left")
 
     plt.xlabel('Date')
     plt.ylabel('Close')
