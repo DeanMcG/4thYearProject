@@ -27,17 +27,17 @@ myclient = pymongo.MongoClient("mongodb+srv://admin:Password@stockcluster.cuzo7.
 mydb = myclient["Stocks"]
 mycol = mydb["GOOG"]
 
-df=pd.read_csv("GOOG5.csv")
-#df=pd.DataFrame(list(mycol.find()))
-#df = df.drop('_id', axis = 1)
+#df=pd.read_csv("GOOG5.csv")
+df=pd.DataFrame(list(mycol.find()))
+df = df.drop('_id', axis = 1)
 
-current_df =pd.read_csv("GOOG5.csv")
-#current_df=pd.DataFrame(list(mycol.find()))
-#current_df = current_df.drop('_id', axis = 1)
+#current_df =pd.read_csv("GOOG5.csv")
+current_df=pd.DataFrame(list(mycol.find()))
+current_df = current_df.drop('_id', axis = 1)
 
 #forecast_df=pd.read_csv("GOOG5.csv")
-#forecast_df=pd.DataFrame(list(mycol.find()))
-#forecast_df = forecast_df.drop(['_id'], axis = 1)
+forecast_df=pd.DataFrame(list(mycol.find()))
+forecast_df = forecast_df.drop(['_id'], axis = 1)
 
 
 
@@ -47,19 +47,24 @@ st.title('Stock Forecast')
 
 #Select Stocks
 stocks = ("GOOG", "TSLA", "AAPL")
-st.selectbox('Select Stock To Forecast', stocks, index = 0)
+stock_selection = st.selectbox('Select Stock To Forecast', stocks, index = 0)
 
 #Slider Bar
 st.select_slider("Years of Prediction", options = [1,2,3,4,5])
 
+
 #Current Data Table
+current_df = current_df.sort_values(by="Date")
 st.header("Current Data")
 st.table(data = current_df.tail())
 
 #Current Graph
 def plot_current():
     st.header("Current Graph")
+    current_df=pd.DataFrame(list(mycol.find()))
+    current_df = current_df.drop('_id', axis = 1)
     current_df["Date"]=pd.to_datetime(current_df.Date,format="%Y-%m-%d")
+    current_df = current_df.sort_values(by="Date")
 
     current_df['Close'] = current_df['Close'].astype(float)
 
@@ -126,7 +131,7 @@ X_test=np.reshape(X_test,(X_test.shape[0],X_test.shape[1],1))
 predicted_closing_price=lstm_model.predict(X_test)
 predicted_closing_price=scaler.inverse_transform(predicted_closing_price)
 
-lstm_model.save("saved_lstm_model.h5")
+#lstm_model.save("saved_lstm_model.h5")
 
 fig = plt.figure(figsize=(12,8))
 
@@ -136,6 +141,7 @@ valid_data['Predictions']=predicted_closing_price
 
 
 forecast_df = valid_data
+forecast_df = forecast_df.sort_values(by="Date")
 
 #Forecast Data Table
 st.header("Forecast Data")
@@ -144,6 +150,10 @@ st.table(data = forecast_df.tail())
 #Forecast Graph
 def plot_forecast():
     st.header("Forecast Graph")
+
+    forecast_df = valid_data
+    forecast_df = forecast_df.sort_values(by="Date")
+    #forecast_df["Date"]=pd.to_datetime(forecast_df.Date,format="%Y-%m-%d")
     
 
 
