@@ -20,66 +20,53 @@ import dns
 
 
 
+st.title('Stock Forecast')
+
 
 #Read csv file into variable df
+
 
 myclient = pymongo.MongoClient("mongodb+srv://admin:Password@stockcluster.cuzo7.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
 mydb = myclient["Stocks"]
 mycol = mydb["GOOG"]
 
-#df=pd.read_csv("GOOG5.csv")
-df=pd.DataFrame(list(mycol.find()))
-df = df.drop('_id', axis = 1)
-
-#current_df =pd.read_csv("GOOG5.csv")
-current_df=pd.DataFrame(list(mycol.find()))
-current_df = current_df.drop('_id', axis = 1)
-
-#forecast_df=pd.read_csv("GOOG5.csv")
-forecast_df=pd.DataFrame(list(mycol.find()))
-forecast_df = forecast_df.drop(['_id'], axis = 1)
-
-
-
-#For debugging purposes
-#print(df)
-st.title('Stock Forecast')
-
 #Select Stocks
 stocks = ("GOOG", "TSLA", "AAPL")
 stock_selection = st.selectbox('Select Stock To Forecast', stocks, index = 0)
+
+if stock_selection == "GOOG":
+    mycol = mydb["GOOG"]
+elif stock_selection == "AAPL":
+    mycol = mydb["AAPL"]
+
+df=pd.DataFrame(list(mycol.find()))
+df = df.drop('_id', axis = 1)
+
+df = df.sort_values(by="Date")
+
 
 #Slider Bar
 st.select_slider("Years of Prediction", options = [1,2,3,4,5])
 
 
 #Current Data Table
-current_df = current_df.sort_values(by="Date")
+df = df.sort_values(by="Date")
+current_table_df = df
+current_table_df.reset_index(drop = True, inplace = True)
 st.header("Current Data")
-st.table(data = current_df.tail())
+st.table(data = current_table_df.tail())
 
 #Current Graph
-def plot_current():
-    st.header("Current Graph")
-    current_df=pd.DataFrame(list(mycol.find()))
-    current_df = current_df.drop('_id', axis = 1)
-    current_df["Date"]=pd.to_datetime(current_df.Date,format="%Y-%m-%d")
-    current_df = current_df.sort_values(by="Date")
+df["Date"]=pd.to_datetime(df.Date,format="%Y-%m-%d")
+df.index=df['Date']
 
-    current_df['Close'] = current_df['Close'].astype(float)
+df['Close'] = df['Close'].astype(float)
+fig = plt.figure(figsize=(16,8))
 
-    fig = plt.figure(figsize=(12,8))
+plt.plot(df["Close"],label='Close Price history')
 
-    plt.plot(
-        current_df["Date"],
-        current_df["Close"],
-    )
+st.write(fig)
 
-    plt.xlabel('Date')
-    plt.ylabel('Close')
-
-    st.write(fig)
-plot_current()
 
 data=df.sort_index(ascending=True,axis=0)
 new_dataset=pd.DataFrame(index=range(0,len(df)),columns=['Date','Close'])
@@ -87,6 +74,7 @@ new_dataset=pd.DataFrame(index=range(0,len(df)),columns=['Date','Close'])
 for i in range(0,len(data)):
     new_dataset["Date"][i]=data['Date'][i]
     new_dataset["Close"][i]=data["Close"][i]
+
 
 
 new_dataset.index=new_dataset.Date
@@ -132,48 +120,22 @@ X_test=np.reshape(X_test,(X_test.shape[0],X_test.shape[1],1))
 predicted_closing_price=lstm_model.predict(X_test)
 predicted_closing_price=scaler.inverse_transform(predicted_closing_price)
 
-#lstm_model.save("saved_lstm_model.h5")
+lstm_model.save("saved_lstm_model.h5")
 
-fig = plt.figure(figsize=(12,8))
+
 
 train_data=new_dataset[:935]
 valid_data=new_dataset[935:]
 valid_data['Predictions']=predicted_closing_price
 
-
-forecast_df = valid_data
-#forecast_df.rename(columns={'': 'Date', 'Close': 'Close', 'Predictions' : 'Predictions'}, inplace = True)
-#forecast_df = forecast_df.sort_values(by="Date")
-
-forecast_df = pd.concat([date_df, valid_data], axis = 1, join="inner")
-forecast_df.reset_index(drop = True, inplace = True)
-forecast_df["Date"]=pd.to_datetime(forecast_df.Date,format="%Y-%m-%d")
-forecast_df = forecast_df.sort_values(by="Date")
-
-#Forecast Data Table
 st.header("Forecast Data")
-st.table(data = forecast_df.tail())
+st.table(data = valid_data.tail())
 
-#Forecast Graph
-def plot_forecast():
-    st.header("Forecast Graph")
+fig1 = plt.figure(figsize=(16,8))
 
-    forecast_df['Close'] = forecast_df['Close'].astype(float)
+plt.plot(train_data["Close"], label="Train Data")
+plt.plot(valid_data['Close'], label="Actual Closing Price")
+plt.plot(valid_data['Predictions'], label="Predicted Closing Price")                    
+plt.legend(loc="upper left")
 
-    fig1 = plt.figure(figsize=(12,8))
-
-    
-    plt.plot(current_df["Date"])
-    plt.plot(current_df["Close"])
-
-
-    #plt.plot(train_data["Close"], label="Train Data")
-    #plt.plot(forecast_df['Close'], label="Actual Closing Price")
-    #plt.plot(forecast_df['Predictions'], label="Predicted Closing Price")                    
-    plt.legend(loc="upper left")
-
-    plt.xlabel('Date')
-    plt.ylabel('Close')
-
-    st.write(fig1)
-plot_forecast()
+st.write(fig1)
