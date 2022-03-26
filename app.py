@@ -10,7 +10,6 @@ from tensorflow.keras.layers import Dense, Dropout, LSTM
 from sklearn.preprocessing import MinMaxScaler
 
 from matplotlib.pylab import rcParams
-rcParams['figure.figsize']=20,10
 
 from sklearn.preprocessing import MinMaxScaler
 
@@ -19,30 +18,7 @@ from pymongo import MongoClient
 import dns
 
 
-
-
-#Read csv file into variable df
-
-myclient = pymongo.MongoClient("mongodb+srv://admin:Password@stockcluster.cuzo7.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
-mydb = myclient["Stocks"]
-mycol = mydb["GOOG"]
-
-#df=pd.read_csv("GOOG5.csv")
-df=pd.DataFrame(list(mycol.find()))
-df = df.drop('_id', axis = 1)
-
-#current_df =pd.read_csv("GOOG5.csv")
-current_df=pd.DataFrame(list(mycol.find()))
-current_df = current_df.drop('_id', axis = 1)
-
-#forecast_df=pd.read_csv("GOOG5.csv")
-forecast_df=pd.DataFrame(list(mycol.find()))
-forecast_df = forecast_df.drop(['_id'], axis = 1)
-
-
-
-#For debugging purposes
-#print(df)
+#Title
 st.title('Stock Forecast')
 
 #Select Stocks
@@ -52,128 +28,132 @@ stock_selection = st.selectbox('Select Stock To Forecast', stocks, index = 0)
 #Slider Bar
 st.select_slider("Years of Prediction", options = [1,2,3,4,5])
 
+def database():
+
+    myclient = pymongo.MongoClient("mongodb+srv://admin:Password@stockcluster.cuzo7.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
+    mydb = myclient["Stocks"]
+    mycol = mydb["GOOG"]
+
+    return mydb, mycol
+
+def stockSelector(mydb):
+
+    if stock_selection == "GOOG":
+        mycol = mydb["GOOG"]
+    elif stock_selection == "AAPL":
+        mycol = mydb["AAPL"]
+
+    return mydb, mycol
+
+def populateDataframe(mycol):
+    df=pd.DataFrame(list(mycol.find()))
+    df = df.drop('_id', axis = 1)
+    df = df.sort_values(by="Date")
+
+    return df
 
 #Current Data Table
-current_df = current_df.sort_values(by="Date")
-st.header("Current Data")
-st.table(data = current_df.tail())
+def currentTable():
+    current_df = df
+    current_df.reset_index(drop = True, inplace = True)
+    st.header("Current Data")
+    st.table(data = current_df.tail())
+
+    return current_df
+
 
 #Current Graph
-def plot_current():
-    st.header("Current Graph")
-    current_df=pd.DataFrame(list(mycol.find()))
-    current_df = current_df.drop('_id', axis = 1)
-    current_df["Date"]=pd.to_datetime(current_df.Date,format="%Y-%m-%d")
-    current_df = current_df.sort_values(by="Date")
+def currentGraph(current_df):
+    current_df["Date"]=pd.to_datetime(df.Date,format="%Y-%m-%d")
+    current_df.index=current_df['Date']
 
     current_df['Close'] = current_df['Close'].astype(float)
+    fig = plt.figure(figsize=(16,8))
 
-    fig = plt.figure(figsize=(12,8))
-
-    plt.plot(
-        current_df["Date"],
-        current_df["Close"],
-    )
-
-    plt.xlabel('Date')
-    plt.ylabel('Close')
+    plt.plot(current_df["Close"],label='Close Price history')
 
     st.write(fig)
-plot_current()
-
-data=df.sort_index(ascending=True,axis=0)
-new_dataset=pd.DataFrame(index=range(0,len(df)),columns=['Date','Close'])
-
-for i in range(0,len(data)):
-    new_dataset["Date"][i]=data['Date'][i]
-    new_dataset["Close"][i]=data["Close"][i]
 
 
-new_dataset.index=new_dataset.Date
-date_df = new_dataset["Date"]
-new_dataset.drop("Date",axis=1,inplace=True)
-final_dataset=new_dataset.values
 
-train_data=final_dataset[0:935,:]
-valid_data=final_dataset[935:,:]
+def createModel(df):
+    data=df.sort_index(ascending=True,axis=0)
+    new_dataset=pd.DataFrame(index=range(0,len(df)),columns=['Date','Close'])
 
-scaler=MinMaxScaler(feature_range=(0,1))
-scaled_data=scaler.fit_transform(final_dataset)
-
-x_train_data,y_train_data=[],[]
-
-for i in range(60,len(train_data)):
-    x_train_data.append(scaled_data[i-60:i,0])
-    y_train_data.append(scaled_data[i,0])
-    
-x_train_data,y_train_data=np.array(x_train_data),np.array(y_train_data)
-
-x_train_data=np.reshape(x_train_data,(x_train_data.shape[0],x_train_data.shape[1],1))
+    for i in range(0,len(data)):
+        new_dataset["Date"][i]=data['Date'][i]
+        new_dataset["Close"][i]=data["Close"][i]
 
 
-lstm_model=Sequential()
-lstm_model.add(LSTM(units=50,return_sequences=True,input_shape=(x_train_data.shape[1],1)))
-lstm_model.add(LSTM(units=50))
-lstm_model.add(Dense(1))
+    new_dataset.index=new_dataset.Date
+    new_dataset.drop("Date",axis=1,inplace=True)
+    final_dataset=new_dataset.values
 
-inputs_data=new_dataset[len(new_dataset)-len(valid_data)-60:].values
-inputs_data=inputs_data.reshape(-1,1)
-inputs_data=scaler.transform(inputs_data)
+    train_data=final_dataset[0:935,:]
+    valid_data=final_dataset[935:,:]
 
-lstm_model.compile(loss='mean_squared_error',optimizer='adam')
-lstm_model.fit(x_train_data,y_train_data,epochs=1,batch_size=1,verbose=2)
+    scaler=MinMaxScaler(feature_range=(0,1))
+    scaled_data=scaler.fit_transform(final_dataset)
 
-X_test=[]
-for i in range(60,inputs_data.shape[0]):
-    X_test.append(inputs_data[i-60:i,0])
-X_test=np.array(X_test)
+    x_train_data,y_train_data=[],[]
 
-X_test=np.reshape(X_test,(X_test.shape[0],X_test.shape[1],1))
-predicted_closing_price=lstm_model.predict(X_test)
-predicted_closing_price=scaler.inverse_transform(predicted_closing_price)
+    for i in range(60,len(train_data)):
+        x_train_data.append(scaled_data[i-60:i,0])
+        y_train_data.append(scaled_data[i,0])
+        
+    x_train_data,y_train_data=np.array(x_train_data),np.array(y_train_data)
 
-#lstm_model.save("saved_lstm_model.h5")
-
-fig = plt.figure(figsize=(12,8))
-
-train_data=new_dataset[:935]
-valid_data=new_dataset[935:]
-valid_data['Predictions']=predicted_closing_price
+    x_train_data=np.reshape(x_train_data,(x_train_data.shape[0],x_train_data.shape[1],1))
 
 
-forecast_df = valid_data
-#forecast_df.rename(columns={'': 'Date', 'Close': 'Close', 'Predictions' : 'Predictions'}, inplace = True)
-#forecast_df = forecast_df.sort_values(by="Date")
+    lstm_model=Sequential()
+    lstm_model.add(LSTM(units=50,return_sequences=True,input_shape=(x_train_data.shape[1],1)))
+    lstm_model.add(LSTM(units=50))
+    lstm_model.add(Dense(1))
 
-forecast_df = pd.concat([date_df, valid_data], axis = 1, join="inner")
-forecast_df.reset_index(drop = True, inplace = True)
-forecast_df["Date"]=pd.to_datetime(forecast_df.Date,format="%Y-%m-%d")
-forecast_df = forecast_df.sort_values(by="Date")
+    inputs_data=new_dataset[len(new_dataset)-len(valid_data)-60:].values
+    inputs_data=inputs_data.reshape(-1,1)
+    inputs_data=scaler.transform(inputs_data)
 
-#Forecast Data Table
-st.header("Forecast Data")
-st.table(data = forecast_df.tail())
+    lstm_model.compile(loss='mean_squared_error',optimizer='adam')
+    lstm_model.fit(x_train_data,y_train_data,epochs=1,batch_size=1,verbose=2)
 
-#Forecast Graph
-def plot_forecast():
-    st.header("Forecast Graph")
+    X_test=[]
+    for i in range(60,inputs_data.shape[0]):
+        X_test.append(inputs_data[i-60:i,0])
+    X_test=np.array(X_test)
 
-    forecast_df['Close'] = forecast_df['Close'].astype(float)
+    X_test=np.reshape(X_test,(X_test.shape[0],X_test.shape[1],1))
+    predicted_closing_price=lstm_model.predict(X_test)
+    predicted_closing_price=scaler.inverse_transform(predicted_closing_price)
 
-    fig1 = plt.figure(figsize=(12,8))
+    lstm_model.save("saved_lstm_model.h5")
 
-    
-    plt.plot(current_df["Date"])
-    plt.plot(current_df["Close"])
+    return new_dataset, predicted_closing_price
 
 
-    #plt.plot(train_data["Close"], label="Train Data")
-    #plt.plot(forecast_df['Close'], label="Actual Closing Price")
-    #plt.plot(forecast_df['Predictions'], label="Predicted Closing Price")                    
+def forecast_graph():
+    train_data=new_dataset[:935]
+    valid_data=new_dataset[935:]
+    valid_data['Predictions']=predicted_closing_price
+
+    st.header("Forecast Data")
+    st.table(data = valid_data.tail())
+
+    fig1 = plt.figure(figsize=(16,8))
+
+    plt.plot(train_data["Close"], label="Train Data")
+    plt.plot(valid_data['Close'], label="Actual Closing Price")
+    plt.plot(valid_data['Predictions'], label="Predicted Closing Price")                    
     plt.legend(loc="upper left")
 
-    plt.xlabel('Date')
-    plt.ylabel('Close')
-
     st.write(fig1)
-plot_forecast()
+
+db, col = database()
+stockSelector(db)
+populateDataframe(col)
+df = populateDataframe(col)
+current_df = currentTable()
+currentGraph(current_df)
+new_dataset, predicted_closing_price = createModel(df)
+forecast_graph()
