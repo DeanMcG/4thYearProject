@@ -1,5 +1,24 @@
-{# extends "base.html" #} {% block content %}
+{% extends "base.html" %} {% block content %}
 
-<h1>Dashboard</h1>
+<ul style="list-style: none" class="top-bar">
+  <li>
+    <a href="/user/signout" class="btn btn--secondary">Sign Out</a>
+  </li>
+  <li>
+    <p><strong>Currently Logged In:</strong> {{ session['user']['name'] }}</p>
+  </li>
+</ul>
+<div class="container">
+  <h1>Stock Forecast</h1>
+
+  <h3>Select A Stock</h3>
+
+  <select class="select-box" name="stocks">
+    <option value="filler">---------------------------------</option>
+    <option value="GOOG">GOOG</option>
+    <option value="AAPL">AAPL</option>
+    <option value="filler">---------------------------------</option>
+  </select>
+</div>
 
 {% endblock %}
