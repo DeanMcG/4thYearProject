@@ -3,7 +3,7 @@ from passlib.hash import pbkdf2_sha256
 from app import db
 import uuid
 
-#User Class
+#User Class 
 class User:
 
   def start_session(self, user):

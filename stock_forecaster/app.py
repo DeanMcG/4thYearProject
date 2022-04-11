@@ -1,8 +1,11 @@
 #Imports
+import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
+import pyrebase
+
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, LSTM
@@ -18,12 +21,61 @@ from pymongo import MongoClient
 import dns
 
 
+
+
+
+firebaseConfig = {
+  'apiKey': "AIzaSyBSS49dtXl5xqejyYX698iKhQRXp-GWvC4",
+  'authDomain': "stockforecaster-2e532.firebaseapp.com",
+  'projectId': "stockforecaster-2e532",
+  'databaseURL' : "https://console.firebase.google.com/project/stockforecaster-2e532/database/stockforecaster-2e532-default-rtdb/data/~2F",
+  'storageBucket': "stockforecaster-2e532.appspot.com",
+  'messagingSenderId': "929676977143",
+  'appId': "1:929676977143:web:2cf2c4df5c035abae584f2",
+  'measurementId': "G-ZD4VT06YFJ"
+};
+
+#Authentication with Firebase
+firebase = pyrebase.initialize_app(firebaseConfig)
+auth = firebase.auth()
+
+#Firebase database
+db = firebase.database()
+storage = firebase.storage()
+
+st.sidebar.title("Stock Forecaster")
+
+#Authenticate User
+choice = st.sidebar.selectbox('Signup/Login', ['Sign Up', 'Login'])
+email = st.sidebar.text_input('Please Enter Email Address')
+password = st.sidebar.text_input('Please Enter Password', type = 'password')
+
+if choice == 'Sign Up':
+    username = st.sidebar.text_input('Please Input Your Username', value= 'Eg.Steve123')
+    submit = st.sidebar.button('Create Account')
+
+    if submit:
+        user = auth.create_user_with_email_and_password(email,password)
+        st.success('Account Created')
+        st.balloons()
+
+        user = auth.sign_in_with_email_and_password(email,password)
+        db.child(user['localId']).child("Username").set(username)
+        db.child(user['localId']).child("ID").set(user['localId'])
+        st.title('Welcome' + username)
+        st.info('Login using dropdown')
+if choice == 'Login':
+    login = st.sidebar.checkbox('Login')
+    if login:
+        user = auth.sign_in_with_email_and_password(email,password)
+
 #Title
 st.title('Stock Forecast')
 
 #Select Stocks
 stocks = ("GOOG", "TSLA", "AAPL")
 stock_selection = st.selectbox('Select Stock To Forecast', stocks, index = 0)
+
 
 #Slider Bar
 #st.select_slider("Years of Prediction", options = [1,2,3,4,5])
@@ -38,18 +90,10 @@ def database():
 
     myclient = pymongo.MongoClient("mongodb+srv://admin:Password@stockcluster.cuzo7.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
     mydb = myclient["Stocks"]
-    mycol = mydb["GOOG"]
+    mycol = mydb[stock_selection]
 
     return mydb, mycol
 
-def stockSelector(mydb):
-
-    if stock_selection == "GOOG":
-        mycol = mydb["GOOG"]
-    elif stock_selection == "AAPL":
-        mycol = mydb["AAPL"]
-
-    return mydb, mycol
 
 def populateDataframe(mycol):
     df=pd.DataFrame(list(mycol.find()))
@@ -133,7 +177,6 @@ def createModel(df):
     predicted_closing_price=lstm_model.predict(X_test)
     predicted_closing_price=scaler.inverse_transform(predicted_closing_price)
 
-    lstm_model.save("saved_lstm_model.h5")
 
     return new_dataset, predicted_closing_price
 
@@ -155,11 +198,13 @@ def forecast_graph():
 
     st.write(fig1)
 
-db, mycol = database()
-stockSelector(db)
+mydb, mycol = database()
 populateDataframe(mycol)
 df = populateDataframe(mycol)
 current_df = currentTable()
 currentGraph(current_df)
-new_dataset, predicted_closing_price = createModel(df)
-forecast_graph()
+
+generate_forecast = st.button('Generate Forecast')
+if generate_forecast:
+    new_dataset, predicted_closing_price = createModel(df)
+    forecast_graph()

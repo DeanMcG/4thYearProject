@@ -30,7 +30,8 @@ body {
   font-size: 18px;
   line-height: 28px;
   color: var(--black);
-  background: rgb(51, 51, 51);
+  /* background: rgb(51, 51, 51); */
+  background-image: url(./img/stockBackground.jpg);
 }
 
 /* Typography */
@@ -212,4 +213,8 @@ li {
   border-radius: 5px;
   background: var(--white);
   text-align: center;
+}
+
+input[type="radio"] {
+  margin-left: 10px;
 }
