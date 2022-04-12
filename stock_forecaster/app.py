@@ -107,8 +107,8 @@ def createModel(df):
     new_dataset.drop("Date",axis=1,inplace=True)
     final_dataset=new_dataset.values
 
-    train_data=final_dataset[0:935,:]
-    valid_data=final_dataset[935:,:]
+    train_data=final_dataset[0:800,:]
+    valid_data=final_dataset[800:,:]
 
     scaler=MinMaxScaler(feature_range=(0,1))
     scaled_data=scaler.fit_transform(final_dataset)
@@ -150,8 +150,8 @@ def createModel(df):
 
 #Forecast data
 def forecast_graph(new_dataset, predicted_closing_price):
-    train_data=new_dataset[:935]
-    valid_data=new_dataset[935:]
+    train_data=new_dataset[:800]
+    valid_data=new_dataset[800:]
     valid_data['Predictions']=predicted_closing_price
 
     st.header("Forecast Data")
