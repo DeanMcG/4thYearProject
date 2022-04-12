@@ -4,7 +4,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
-import pyrebase
+import hashlib
+
+import sqlite3
+connection = sqlite3.connect('user.db')
+c = connection.cursor()
 
 
 from tensorflow.keras.models import Sequential
@@ -20,73 +24,36 @@ import pymongo
 from pymongo import MongoClient
 import dns
 
+#SQL Database Management
+def create_usertable():
+	c.execute('CREATE TABLE IF NOT EXISTS userstable(username TEXT,password TEXT)')
 
 
+def add_userdata(username,password):
+	c.execute('INSERT INTO userstable(username,password) VALUES (?,?)',(username,password))
+	connection.commit()
 
+def login_user(username,password):
+	c.execute('SELECT * FROM userstable WHERE username =? AND password = ?',(username,password))
+	data = c.fetchall()
+	return data
 
-firebaseConfig = {
-  'apiKey': "AIzaSyBSS49dtXl5xqejyYX698iKhQRXp-GWvC4",
-  'authDomain': "stockforecaster-2e532.firebaseapp.com",
-  'projectId': "stockforecaster-2e532",
-  'databaseURL' : "https://console.firebase.google.com/project/stockforecaster-2e532/database/stockforecaster-2e532-default-rtdb/data/~2F",
-  'storageBucket': "stockforecaster-2e532.appspot.com",
-  'messagingSenderId': "929676977143",
-  'appId': "1:929676977143:web:2cf2c4df5c035abae584f2",
-  'measurementId': "G-ZD4VT06YFJ"
-};
+def view_all_users():
+	c.execute('SELECT * FROM userstable')
+	data = c.fetchall()
+	return data
 
-#Authentication with Firebase
-firebase = pyrebase.initialize_app(firebaseConfig)
-auth = firebase.auth()
+#Hashlib - password security
+def hash_password(password):
+    return hashlib.sha256(str.encode(password)).hexdigest()
 
-#Firebase database
-db = firebase.database()
-storage = firebase.storage()
+def check_hash(password, hashed_text):
+    if hash_password(password) == hashed_text:
+        return hashed_text
+    return False
 
-st.sidebar.title("Stock Forecaster")
-
-#Authenticate User
-choice = st.sidebar.selectbox('Signup/Login', ['Sign Up', 'Login'])
-email = st.sidebar.text_input('Please Enter Email Address')
-password = st.sidebar.text_input('Please Enter Password', type = 'password')
-
-if choice == 'Sign Up':
-    username = st.sidebar.text_input('Please Input Your Username', value= 'Eg.Steve123')
-    submit = st.sidebar.button('Create Account')
-
-    if submit:
-        user = auth.create_user_with_email_and_password(email,password)
-        st.success('Account Created')
-        st.balloons()
-
-        user = auth.sign_in_with_email_and_password(email,password)
-        db.child(user['localId']).child("Username").set(username)
-        db.child(user['localId']).child("ID").set(user['localId'])
-        st.title('Welcome' + username)
-        st.info('Login using dropdown')
-if choice == 'Login':
-    login = st.sidebar.checkbox('Login')
-    if login:
-        user = auth.sign_in_with_email_and_password(email,password)
-
-#Title
-st.title('Stock Forecast')
-
-#Select Stocks
-stocks = ("GOOG", "TSLA", "AAPL")
-stock_selection = st.selectbox('Select Stock To Forecast', stocks, index = 0)
-
-
-#Slider Bar
-#st.select_slider("Years of Prediction", options = [1,2,3,4,5])
-
-
-
-
-
-
-
-def database():
+#MongoDB stock database connection
+def database(stock_selection):
 
     myclient = pymongo.MongoClient("mongodb+srv://admin:Password@stockcluster.cuzo7.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
     mydb = myclient["Stocks"]
@@ -95,6 +62,7 @@ def database():
     return mydb, mycol
 
 
+#Populates pandas dataframe with stock information
 def populateDataframe(mycol):
     df=pd.DataFrame(list(mycol.find()))
     df = df.drop('_id', axis = 1)
@@ -103,7 +71,7 @@ def populateDataframe(mycol):
     return df
 
 #Current Data Table
-def currentTable():
+def currentTable(df):
     current_df = df
     current_df.reset_index(drop = True, inplace = True)
     st.header("Current Data")
@@ -113,7 +81,7 @@ def currentTable():
 
 
 #Current Graph
-def currentGraph(current_df):
+def currentGraph(current_df, df):
     current_df["Date"]=pd.to_datetime(df.Date,format="%Y-%m-%d")
     current_df.index=current_df['Date']
 
@@ -125,7 +93,7 @@ def currentGraph(current_df):
     st.write(fig)
 
 
-
+#LSTM model creation
 def createModel(df):
     data=df.sort_index(ascending=True,axis=0)
     new_dataset=pd.DataFrame(index=range(0,len(df)),columns=['Date','Close'])
@@ -180,8 +148,8 @@ def createModel(df):
 
     return new_dataset, predicted_closing_price
 
-
-def forecast_graph():
+#Forecast data
+def forecast_graph(new_dataset, predicted_closing_price):
     train_data=new_dataset[:935]
     valid_data=new_dataset[935:]
     valid_data['Predictions']=predicted_closing_price
@@ -198,13 +166,62 @@ def forecast_graph():
 
     st.write(fig1)
 
-mydb, mycol = database()
-populateDataframe(mycol)
-df = populateDataframe(mycol)
-current_df = currentTable()
-currentGraph(current_df)
+def main():
 
-generate_forecast = st.button('Generate Forecast')
-if generate_forecast:
-    new_dataset, predicted_closing_price = createModel(df)
-    forecast_graph()
+    menu = ['Home','Login','Signup']
+    choice = st.sidebar.selectbox('Menu', menu)
+
+
+
+    if choice == 'Home':
+        st.title('Home')
+        st.warning('Please sign up or log in to view dashboard, thanks!')
+
+
+    elif choice == 'Login':
+        st.subheader('Login')
+        username = st.sidebar.text_input('Username')
+        password = st.sidebar.text_input('Password', type = 'password')
+        if st.sidebar.checkbox('Login'):
+            create_usertable()
+            hashed_password = hash_password(password)
+            result = login_user(username, check_hash(password, hashed_password))
+            if result:
+                st.success('Logged In as {}'.format(username))
+
+                #Title
+                st.title('Stock Forecast')
+
+                #Select Stocks
+                stocks = ("GOOG", "TSLA", "AAPL")
+                stock_selection = st.selectbox('Select Stock To Forecast', stocks, index = 0)
+
+                mydb, mycol = database(stock_selection)
+                populateDataframe(mycol)
+                df = populateDataframe(mycol)
+                current_df = currentTable(df)
+                currentGraph(current_df, df)
+
+                generate_forecast = st.button('Generate Forecast')
+                if generate_forecast:
+                    new_dataset, predicted_closing_price = createModel(df)
+                    forecast_graph(new_dataset, predicted_closing_price)
+            else:
+                st.warning('Incorrect Username or Password')
+            
+
+    elif choice == 'Signup':
+        st.subheader('Signup')
+        new_user = st.text_input('Username')
+        new_password = st.text_input('Password', type='password')
+
+        if st.button('Signup'):
+            create_usertable()
+            add_userdata(new_user, hash_password(new_password))
+            st.success('Account created successfully!')
+            st.balloons()
+            st.info('Please go to login menu to use new account')
+
+
+if __name__ == '__main__':
+    main()
